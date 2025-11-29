@@ -1,0 +1,33 @@
+name: Trivy Security Scan
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  security-scan:
+    name: Run Trivy Security Scanner
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+        
+    - name: Generate HTML report
+      run: |
+        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+        trivy fs . --format template --template "@contrib/html.tpl" -o trivy-report.html || echo "Scan completed with findings"
+        
+    - name: Upload HTML report
+      uses: actions/upload-artifact@v3
+      with:
+        name: trivy-security-report
+        path: trivy-report.html
+        retention-days: 30
