@@ -1,4 +1,4 @@
-name: Trivy Dependency Scan
+name: Trivy Security Scan
 
 on:
   push:
@@ -7,37 +7,43 @@ on:
     branches: [ "main" ]
 
 jobs:
-  trivy-scan:
+  trivy-security:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Trivy
+      # 2. Install dependencies for Trivy
+      - name: Install Trivy CLI
         run: |
           sudo apt-get update
           sudo apt-get install -y wget jq
+          LATEST=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest | jq -r '.tag_name')
+          DEB="trivy_${LATEST#v}_Linux-64bit.deb"
+          URL="https://github.com/aquasecurity/trivy/releases/download/${LATEST}/${DEB}"
+          echo "Downloading $URL"
+          wget -q "$URL"
+          sudo dpkg -i "$DEB"
 
-          LATEST_URL=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest \
-            | jq -r '.assets[] | select(.name | test("Linux-64bit.deb$")) | .browser_download_url')
-
-          echo "Downloading: $LATEST_URL"
-          wget "$LATEST_URL"
-          sudo dpkg -i $(basename "$LATEST_URL")
-
-      - name: Generate SBOM
+      # 3. FS scan + HTML report (vulnerability scanning)
+      - name: Trivy Vulnerability Scan (HTML)
         run: |
-          trivy sbom --output sbom.json --format cyclonedx .
+          trivy fs . --format template \
+            --template "@contrib/html.tpl" \
+            --output report.html
 
-      - name: Generate HTML report
+      # 4. Generate SBOM CycloneDX
+      - name: Generate SBOM CycloneDX
         run: |
-          trivy fs . --format template --template "@contrib/html.tpl" --output report.html
+          trivy fs . --format cyclonedx --scanners vuln --output sbom.json
 
-      - name: Upload Trivy reports
+      # 5. Upload artifacts
+      - name: Upload Trivy Reports
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-reports
+          name: trivy-security-results
           path: |
-            sbom.json
             report.html
+            sbom.json
