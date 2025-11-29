@@ -1,56 +1,35 @@
-name: Trivy Security Scan
+name: Trivy Dependency Scan
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
-  trivy-security:
+  scan:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Install Trivy
-      - name: Install Trivy CLI
+      - name: Install Trivy
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget jq
-          LATEST=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest | jq -r '.tag_name')
-          DEB="trivy_${LATEST#v}_Linux-64bit.deb"
-          URL="https://github.com/aquasecurity/trivy/releases/download/${LATEST}/${DEB}"
-          echo "Downloading $URL"
-          wget -q "$URL"
-          sudo dpkg -i "$DEB"
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.53.0_Linux-64bit.deb
+          sudo dpkg -i trivy_0.53.0_Linux-64bit.deb
 
-      # 3. Download Trivy HTML template
-      - name: Download HTML template
-        run: |
-          mkdir -p contrib
-          wget -q https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -O contrib/html.tpl
+      - name: Install Node dependencies
+        run: npm ci
 
-      # 4. Vulnerability scan → HTML
-      - name: Trivy Vulnerability Scan (HTML)
-        run: |
-          trivy fs . \
-            --format template \
-            --template "@contrib/html.tpl" \
-            --output report.html
+      - name: Generate SBOM
+        run: trivy fs --format spdx-json --output sbom.json .
 
-      # 5. SBOM CycloneDX with vulnerabilities
-      - name: Generate SBOM CycloneDX
-        run: |
-          trivy fs . --format cyclonedx --scanners vuln --output sbom.json
+      - name: Scan vulnerabilities
+        run: trivy fs --format html --output trivy_report.html .
 
-      # 6. Upload artifacts
-      - name: Upload Trivy Reports
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-security-results
-          path: |
-            report.html
-            sbom.json
+          name: trivy-report
+          path: trivy_report.html
