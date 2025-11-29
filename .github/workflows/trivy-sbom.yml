@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.20.0
         with:
           scan-type: fs
           format: table
@@ -32,10 +32,11 @@ jobs:
             --output report.html .
 
       - name: Upload artifacts (HTML report + SBOM)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: trivy-reports
           path: |
             trivy-report.txt
             report.html
             sbom.json
+          compression-level: 6
