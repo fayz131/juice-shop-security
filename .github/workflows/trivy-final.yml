@@ -1,0 +1,68 @@
+name: Trivy Security Scan Final
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          trivy --version
+
+      - name: Download HTML template
+        run: |
+          curl -sLO https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
+          ls -la html.tpl
+
+      - name: Run Trivy security scan
+        run: |
+          echo "=== Running Security Scan ==="
+          trivy fs . --format table --exit-code 0
+
+      - name: Generate SBOM
+        run: |
+          echo "=== Generating SBOM ==="
+          trivy fs . --format cyclonedx --output sbom.json
+          echo "SBOM file size:"
+          ls -la sbom.json
+
+      - name: Generate HTML vulnerability report
+        run: |
+          echo "=== Generating HTML Report ==="
+          trivy fs . --format template --template "./html.tpl" --output report.html
+          echo "HTML report size:"
+          ls -la report.html
+
+      - name: Create summary report
+        run: |
+          echo "=== Creating Summary ==="
+          cat > summary.txt << EOL
+          Trivy Security Scan Summary
+          ============================
+          Repository: ${{ github.repository }}
+          Commit: ${{ github.sha }}
+          Date: $(date)
+          
+          Scan completed successfully!
+          Check the HTML report for detailed findings.
+          EOL
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-final-reports
+          path: |
+            report.html
+            sbom.json
+            summary.txt
+          retention-days: 7
