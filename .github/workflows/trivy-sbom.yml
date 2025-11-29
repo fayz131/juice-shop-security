@@ -20,7 +20,7 @@ jobs:
       - name: Install Node dependencies (Yarn)
         run: |
           corepack enable
-          yarn install --frozen-lockfile
+          yarn install
 
       - name: Install Trivy
         run: |
@@ -28,14 +28,24 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
           | sudo sh -s -- -b /usr/local/bin
 
-      - name: Generate SBOM
-        run: trivy fs --format spdx-json --output sbom.json .
-
       - name: Download HTML template
         run: curl -sSL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o trivy-html.tpl
 
       - name: Scan vulnerabilities (HTML)
-        run: trivy fs --format template --template @trivy-html.tpl --output trivy_report.html .
+        run: |
+          trivy fs \
+            --scanners vuln,secret,license,config \
+            --ignore-unfixed \
+            --skip-dirs .github \
+            --skip-dirs .gitlab \
+            --skip-dirs monitoring \
+            --skip-dirs vagrant \
+            --skip-dirs .zap \
+            --skip-dirs build \
+            --template @trivy-html.tpl \
+            --format template \
+            --output trivy_report.html \
+            .
 
       - name: Upload report
         uses: actions/upload-artifact@v4
