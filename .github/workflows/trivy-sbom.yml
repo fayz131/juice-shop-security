@@ -15,11 +15,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Trivy
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          scan-type: fs
-          format: table
-          output: trivy-report.txt
+        run: |
+          sudo apt-get update
+          sudo apt-get install wget -y
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.2_Linux-64bit.deb
+          sudo dpkg -i trivy_0.50.2_Linux-64bit.deb
 
       - name: Generate SBOM (CycloneDX)
         run: |
@@ -36,7 +36,6 @@ jobs:
         with:
           name: trivy-reports
           path: |
-            trivy-report.txt
             report.html
             sbom.json
           compression-level: 6
