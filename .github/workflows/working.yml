@@ -1,0 +1,36 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          
+      - name: Run Trivy scan
+        run: |
+          trivy fs . --format table
+          trivy fs . --format json --output results.json
+          
+      - name: Generate SBOM
+        run: |
+          trivy fs . --format cyclonedx --output sbom.json
+          
+      - name: Create HTML
+        run: echo "<html><body><h1>Scan Done</h1></body></html>" > report.html
+          
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: results
+          path: |
+            report.html
+            sbom.json
+            results.json
