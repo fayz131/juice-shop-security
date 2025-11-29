@@ -1,0 +1,57 @@
+name: Trivy Security Scan - Correct HTML
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Trivy with proper template
+        run: |
+          # Устанавливаем Trivy
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          
+          # Создаем директорию для шаблонов
+          mkdir -p ~/.trivy/templates
+          
+          # Скачиваем официальный HTML шаблон
+          curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o ~/.trivy/templates/html.tpl
+          
+          # Проверяем что шаблон на месте
+          ls -la ~/.trivy/templates/
+          trivy --version
+
+      - name: Run Trivy scan and generate real HTML report
+        run: |
+          echo "=== Running Trivy Security Scan ==="
+          
+          # Запускаем сканирование и генерируем HTML отчет
+          trivy fs . --format template --template html --output report.html
+          
+          echo "HTML report generated!"
+          echo "File size: $(ls -la report.html | awk '{print $5}') bytes"
+          
+          # Проверяем содержимое
+          echo "First 10 lines of report:"
+          head -10 report.html || echo "Empty file"
+
+      - name: Generate SBOM
+        run: |
+          echo "=== Generating SBOM ==="
+          trivy fs . --format cyclonedx --output sbom.json
+          echo "SBOM file size: $(ls -la sbom.json | awk '{print $5}') bytes"
+
+      - name: Upload real artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-real-reports
+          path: |
+            report.html
+            sbom.json
+          retention-days: 7
