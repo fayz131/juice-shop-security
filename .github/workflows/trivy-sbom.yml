@@ -15,7 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Install dependencies for Trivy
+      # 2. Install Trivy
       - name: Install Trivy CLI
         run: |
           sudo apt-get update
@@ -27,19 +27,26 @@ jobs:
           wget -q "$URL"
           sudo dpkg -i "$DEB"
 
-      # 3. FS scan + HTML report (vulnerability scanning)
+      # 3. Download Trivy HTML template
+      - name: Download HTML template
+        run: |
+          mkdir -p contrib
+          wget -q https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -O contrib/html.tpl
+
+      # 4. Vulnerability scan → HTML
       - name: Trivy Vulnerability Scan (HTML)
         run: |
-          trivy fs . --format template \
+          trivy fs . \
+            --format template \
             --template "@contrib/html.tpl" \
             --output report.html
 
-      # 4. Generate SBOM CycloneDX
+      # 5. SBOM CycloneDX with vulnerabilities
       - name: Generate SBOM CycloneDX
         run: |
           trivy fs . --format cyclonedx --scanners vuln --output sbom.json
 
-      # 5. Upload artifacts
+      # 6. Upload artifacts
       - name: Upload Trivy Reports
         uses: actions/upload-artifact@v4
         with:
