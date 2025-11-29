@@ -9,32 +9,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Install Node + Yarn
+      # Install Node 22 (required by libxmljs2)
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Install dependencies with Yarn
       - name: Install Node dependencies (Yarn)
         run: |
           corepack enable
           yarn install --frozen-lockfile
 
-      # Install Trivy
       - name: Install Trivy
         run: |
           sudo apt-get update
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
           | sudo sh -s -- -b /usr/local/bin
 
-      # Generate SBOM in SPDX JSON
       - name: Generate SBOM
         run: trivy fs --format spdx-json --output sbom.json .
 
-      # Generate HTML vulnerability report
-      - name: Scan vulnerabilities
+      - name: Scan vulnerabilities (HTML)
         run: trivy fs --format html --output trivy_report.html .
 
-      # Upload artifacts
       - name: Upload report
         uses: actions/upload-artifact@v4
         with:
